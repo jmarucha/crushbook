@@ -1,14 +1,44 @@
-import facebook
+import csv
+
 from data_downloader import DataDownloader
+from statistical_prediction import StatisticalPrediction
+from facebook import GraphAPIError
 
-access_token = open("token.xd", "r").read().strip()
+def pullData():
+    access_token = open("token.xd", "r").read().strip()
+    data_downloader = DataDownloader(access_token)
 
+    data_downloader.select_group()
+    
+    print("Hit Ctrl-C to stop downloading.")
+    try:
+        data_downloader.process_feed()
+    except KeyboardInterrupt:
+        print(" Stopped downloading.")
+    except GraphAPIError:
+        print(" Graph Api Error")
 
-data_downloader = DataDownloader(access_token)
+    react_data = data_downloader.react_dict
+    user_data = data_downloader.users_dict
 
-data_downloader.select_group()
-# data_downloader.group_id = "1746463952328227"
+    return (react_data, user_data)
 
-data_downloader.process_feed()
+def main():
+    output = open('data.csv', 'w')
+    outputwriter = csv.writer(output)
+    reacts, users = pullData()
+    print(reacts)
+    stats = StatisticalPrediction(reacts)
 
-print(data_downloader.react_dict)
+    for receiver in reacts:
+        for giver in reacts:
+            if stats.actual(receiver, giver) > 5:
+                print(users.get(receiver)["name"],
+                  users.get(giver)["name"],
+                  stats.compare(receiver, giver))
+                outputwriter.writerow([users.get(receiver)["name"],
+                  users.get(giver)["name"],
+                  stats.compare(receiver, giver)])
+
+if __name__ == "__main__":
+    main()
